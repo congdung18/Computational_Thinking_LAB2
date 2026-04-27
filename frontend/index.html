@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Transit Guide | Smart RAG Suggestions</title>
+    <meta name="description" content="Get AI-powered transportation suggestions based on real-time weather and your personal preferences.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="ambient-background">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <main class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="ph-fill ph-navigation-arrow"></i>
+                <h1>Transit<span>AI</span></h1>
+            </div>
+            <p class="subtitle">Intelligent travel recommendations tailored to your conditions.</p>
+        </header>
+
+        <section class="glass-card">
+            <form id="suggestion-form">
+                <div class="input-group">
+                    <label for="weather">
+                        <i class="ph ph-cloud-sun"></i> Weather Conditions
+                    </label>
+                    <input 
+                        type="text" 
+                        id="weather" 
+                        placeholder="e.g., Heavy rain, 25°C sunny, snowing..." 
+                        required
+                    />
+                </div>
+
+                <div class="input-group">
+                    <label for="preferences">
+                        <i class="ph ph-sliders"></i> Your Preferences
+                    </label>
+                    <textarea 
+                        id="preferences" 
+                        rows="3" 
+                        placeholder="e.g., I need to travel 5km, prefer eco-friendly, want to exercise..." 
+                        required
+                    ></textarea>
+                </div>
+
+                <button type="submit" id="submit-btn" class="btn-primary">
+                    <span class="btn-text">Get Recommendation</span>
+                    <i class="ph ph-sparkle"></i>
+                    <div class="loader" id="btn-loader"></div>
+                </button>
+            </form>
+        </section>
+
+        <section id="result-container" class="glass-card result-card hidden">
+            <div class="result-header">
+                <i class="ph-fill ph-check-circle result-icon"></i>
+                <h2>Recommended Transport</h2>
+            </div>
+            <div id="result-content" class="result-content">
+                <!-- Result will be injected here -->
+            </div>
+            <button id="reset-btn" class="btn-secondary hidden">Plan Another Trip</button>
+        </section>
+
+        <div id="error-toast" class="toast hidden">
+            <i class="ph ph-warning-circle"></i>
+            <span id="error-message">Connection error. Please try again.</span>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
