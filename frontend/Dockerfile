@@ -1,11 +1,14 @@
+# Build stage
+FROM node:20-alpine as build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Production stage
 FROM nginx:alpine
-
-# Copy the frontend files to the Nginx html directory
-COPY . /usr/share/nginx/html
-
-# Overwrite the default Nginx configuration with our custom one
-COPY default.conf /etc/nginx/conf.d/default.conf
-
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]

@@ -48,7 +48,7 @@ except Exception as e:
 
 # Initialize LLM
 try:
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.2)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
 except Exception as e:
     print(f"Failed to initialize Gemini: {e}")
     llm = None
