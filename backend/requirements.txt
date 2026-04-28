@@ -9,3 +9,4 @@ pydantic
 python-dotenv
 sentence-transformers
 langchain-chroma
+firebase-admin

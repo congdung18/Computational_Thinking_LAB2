@@ -9,6 +9,10 @@ from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+import firebase_admin
+from firebase_admin import credentials, auth, firestore
+from fastapi import Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Load environment variables
 load_dotenv()
@@ -31,6 +35,34 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Initialize Firebase Admin
+cred_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY_PATH")
+if cred_path and os.path.exists(cred_path):
+    try:
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        print("Firebase Admin and Firestore initialized successfully.")
+    except Exception as e:
+        print(f"Failed to initialize Firebase Admin: {e}")
+        db = None
+else:
+    print("WARNING: FIREBASE_SERVICE_ACCOUNT_KEY_PATH not set or file not found. Auth will fail.")
+    db = None
+
+security = HTTPBearer()
+
+def verify_firebase_token(creds: HTTPAuthorizationCredentials = Security(security)):
+    try:
+        decoded_token = auth.verify_id_token(creds.credentials)
+        return decoded_token
+    except Exception as e:
+        raise HTTPException(
+            status_code=401, 
+            detail=f"Invalid authentication credentials: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 # Initialize models and DB at startup
 print("Initializing embeddings and Vector DB connection...")
@@ -81,8 +113,56 @@ class SuggestionResponse(BaseModel):
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
+@app.post("/auth")
+async def sync_user(user_info: dict = Depends(verify_firebase_token)):
+    if not db:
+        return {"status": "Firestore not initialized"}
+        
+    user_id = user_info.get("uid")
+    email = user_info.get("email")
+    
+    try:
+        user_ref = db.collection("users").document(user_id)
+        doc = user_ref.get()
+        
+        if not doc.exists:
+            user_ref.set({
+                "email": email,
+                "created_at": firestore.SERVER_TIMESTAMP
+            })
+            return {"status": "New user created"}
+        return {"status": "User synced"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/history")
+async def get_history(user_info: dict = Depends(verify_firebase_token)):
+    if not db:
+        return {"history": []}
+        
+    user_id = user_info.get("uid")
+    
+    try:
+        docs = db.collection("users").document(user_id).collection("history")\
+                 .order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
+                 
+        history = []
+        for doc in docs:
+            data = doc.to_dict()
+            if "timestamp" in data and data["timestamp"]:
+                data["timestamp"] = data["timestamp"].isoformat()
+            history.append(data)
+            
+        return {"history": history}
+    except Exception as e:
+        print(f"Error fetching history: {e}")
+        return {"history": []}
+
 @app.post("/suggest", response_model=SuggestionResponse)
-async def suggest_transportation(request: SuggestionRequest):
+async def suggest_transportation(
+    request: SuggestionRequest, 
+    user_info: dict = Depends(verify_firebase_token)
+):
     if not retriever or not llm:
         raise HTTPException(status_code=500, detail="RAG system is not properly initialized. Check API keys and ensure ingest.py was run.")
 
@@ -96,9 +176,19 @@ async def suggest_transportation(request: SuggestionRequest):
         )
 
         # Execute chain
-        # The retriever uses a combined query of weather and preferences to find relevant rules
         combined_query = f"Weather: {request.weather}. Preferences: {request.preferences}"
         response = rag_chain.invoke(combined_query)
+
+        # Save to Firestore
+        if db:
+            user_id = user_info.get("uid")
+            history_ref = db.collection("users").document(user_id).collection("history")
+            history_ref.add({
+                "weather": request.weather,
+                "preferences": request.preferences,
+                "suggestion": response,
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
 
         return SuggestionResponse(suggestion=response)
     except Exception as e:
