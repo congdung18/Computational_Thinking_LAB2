@@ -2,7 +2,7 @@
 
 A complete Retrieval-Augmented Generation (RAG) web application that intelligently recommends the best transportation method (e.g., walking, biking, driving, or public transit) based on the user's weather conditions and travel preferences.
 
-## 🌟 Project Architecture
+## Project Architecture
 
 The project is split into two main services, containerized using Docker:
 
@@ -11,11 +11,11 @@ The project is split into two main services, containerized using Docker:
 - **LLM:** Google Gemini (`gemini-2.5-flash`) via LangChain.
 - **Embeddings:** HuggingFace (`all-MiniLM-L6-v2`).
 - **Vector Database:** ChromaDB to store and retrieve transportation context rules.
-- **Database:** Firebase Firestore (for saving user profiles and chat history).
-- **Authentication:** Firebase Admin SDK (token verification).
+- **Database:** Firebase Firestore for saving user profiles and chat history.
+- **Authentication:** Firebase Admin SDK and Email/Password authentication.
 - **Port:** `8000`
 
-### 2. Frontend (React + Vite)
+### 2. Frontend (React & Vite)
 - **Framework:** React powered by Vite for fast, modern web development.
 - **Authentication:** Firebase JS SDK (Google & Email/Password login).
 - **Styling:** Vanilla CSS for a clean, responsive user interface.
@@ -24,10 +24,33 @@ The project is split into two main services, containerized using Docker:
 
 ---
 
-## 🚀 Getting Started
+## Project Structure (Summary)
+
+```
+.
+├── backend/
+│   ├── core/            # Config, Firebase setup, auth helpers
+│   ├── routes/          # FastAPI route handlers
+│   ├── schemas/         # Pydantic request/response models
+│   ├── services/        # RAG and Firestore business logic
+│   ├── ingest/          # Vector DB ingestion script
+│   ├── data/            # Source rules for RAG
+│   ├── chroma_db/       # Persisted vector store
+│   ├── main.py          # FastAPI app entrypoint
+│   └── requirements.txt
+├── frontend/
+│   ├── src/             # React source code
+│   └── public/          # Static assets
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+## Getting Started
 
 ### Prerequisites
-- [Docker](https://www.docker.com/products/docker-desktop) and Docker Compose installed.
+- [Docker](https://www.docker.com/products/docker-desktop) and Docker Compose installed (only required for the Docker run path).
 - A valid Google Gemini API Key.
 
 ### 1. Setup Environment Variables
@@ -61,26 +84,56 @@ If it's your first time or if you update the rules in `backend/data/transport_ru
 
 ```bash
 cd backend
-python ingest.py
+python -m ingest.ingest
 cd ..
 ```
 *(This will read `transport_rules.txt`, split the content, compute embeddings, and save the Vector DB to the `chroma_db` folder.)*
 
-### 3. Run the Application with Docker Compose
+### 3. Run with Docker
 From the root directory of the project, build and spin up the containers:
 
 ```bash
 docker compose up -d --build
 ```
 
-### 4. Access the Application
-Once the containers are successfully running:
-- **Frontend UI:** Open your browser and navigate to [http://localhost:3000](http://localhost:3000)
-- **Backend API Docs:** Navigate to [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI) to test the backend API interactively without Postman.
+### 4. Run without Docker
+
+#### Backend (local)
+```bash
+cd backend
+python -m venv .venv
+```
+
+Activate the virtual environment:
+- **Windows (PowerShell):** `.\.venv\Scripts\Activate.ps1`
+- **macOS/Linux:** `source .venv/bin/activate`
+
+Then install dependencies, ingest data, and start the API:
+
+```bash
+pip install -r requirements.txt
+python -m ingest.ingest
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Frontend (local)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 5. Access the Application
+- **With Docker:**
+  - Frontend UI: [http://localhost:3000](http://localhost:3000)
+  - Backend API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Without Docker:**
+  - Frontend UI: [http://localhost:5173](http://localhost:5173) (Vite default)
+  - Backend API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## 🛠️ API Reference
+## API Reference
 
 *Note: All core endpoints (except `/health`) now require a valid Firebase ID Token passed in the `Authorization: Bearer <token>` header.*
 
@@ -123,18 +176,3 @@ Once the containers are successfully running:
   ```
 
 ---
-
-## 🛑 Useful Docker Commands
-
-- **Stop the containers:**
-  ```bash
-  docker compose down
-  ```
-- **Rebuild and start a specific service (e.g., backend):**
-  ```bash
-  docker compose up -d --build backend
-  ```
-- **View logs for a service:**
-  ```bash
-  docker compose logs -f backend
-  ```
